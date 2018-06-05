@@ -9,24 +9,24 @@ local TCP/IP network using their serial protocol. It was written
 specifically on Xubuntu 16.04, using a familiar socket API (sys/socket.h,
 *et al.*).
 
-  This code is distributed in the hope that it will be useful, but
-  *WITHOUT ANY WARRANTY*; without even the implied warranty of
-  *MERCHANTABILITY* or *FITNESS FOR A PARTICULAR PURPOSE*. See COPYING
-  for more details.
+Consider this to be “pre-alpha” example code.
+
+This code is distributed in the hope that it will be useful, but *WITHOUT
+ANY WARRANTY*; without even the implied warranty of *MERCHANTABILITY* or
+*FITNESS FOR A PARTICULAR PURPOSE*. See COPYING for more details.
 
 Building
 ========
 
 .. note::
 
-   If you got this code using git instead of receiving a tarball package
-   from Highland Technology, you will first need to run the command
+You will first need to run the command:
 
-   ::
+::
 
-      autoreconf -i
+   autoreconf -i
 
-   You will need autotools and libtool to be installed on your computer.
+which requires autotools and libtool to be installed on your computer.
 
 The generic instructions for configuring this source tree for your
 computer are in the file INSTALL in this directory.  Briefly, the
@@ -42,17 +42,15 @@ This will install into your /usr/local/ directory by default.
 Note that the default installation is not always the best.  Some Linux
 distributions will require you to either modify your LD_LIBRARY_PATH or
 use a different installation path (the "--prefix" argument) for the
-shared-object libraries to work.  You may also need to add to MANPATH
-so see the man pages.
+shared-object libraries to work.  You may also need to add to MANPATH.
 
 Read INSTALL for more information.
 
 Documentation
 =============
 
-Man pages are in the ``man/`` directory.  They are installed with the
-binaries. To read them without installing, for example hti-tcp-reflash
-(1), try one of:
+The man page is in the ``man/`` directory.  It is installed with the
+binaries. To read it without installing, try one of:
 
 ::
 
@@ -67,7 +65,7 @@ or
 Portability
 ===========
 
-This was written specifically for Xubuntu 16.04.  It may work on other
-POSIX-compliant environments, but some tweaking may be necessary.
+This was written specifically for Xubuntu 16.04.  It might work on other
+POSIX-compliant environments, but some tweaking could be necessary.
 
 Paul Bailey
