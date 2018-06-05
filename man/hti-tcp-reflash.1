@@ -1,0 +1,42 @@
+.TH "EGTOOLS" "1" "July 2016" "Highland Technology, Inc." "EGTOOLS"
+.SH "NAME"
+\fBhti-tcp-reflash\fR - reflash some of Highland's products via TCP/IP
+.SH "SYNOPSIS"
+.B hti-tcp-reflash
+[\fB-s \fIserial\fR]
+[\fB-i \fIip_address\fR]
+.I target filename
+.SH "ARGUMENTS"
+.P
+\fItarget\fR is one of the following:
+.BR p620 ,
+.BR p470 ,
+.BR t680 ,
+.BR v120 ,
+.BR v124.
+.P
+\fIfilename\fR is the path to the file to reflash.  This is the
+.I ASCII upgrade
+file (eg. 23E470E_upgrade.s28),
+.I NOT
+a non-upgrade file (those without the "_upgrade") or a binary
+file (those with the ".bin" suffix)!
+.SH "OPTIONS"
+.P
+You must use \fIone\fR but \fInot\fR both of the following options:
+.P
+.BI "-s " serial
+.RS 4
+Serial number of the unit to upgrade.  This will be used to determine
+the unit's hostname.
+.RE
+.P
+.BI "-i " ip_address
+.RS 4
+IP address of the unit to upgrade.  Use this if you know the IP address
+of the unit to test, and you want to use that instead.
+.RE
+.SH "BUGS"
+The cake is a lie.
+.SH "AUTHORS"
+Paul Bailey
