@@ -1,2 +1,2 @@
-man1_MANS = tcp_reflash.1
-EXTRA_DIST = tcp_reflash.1
+man1_MANS = hti-tcp-reflash.1
+EXTRA_DIST = hti-tcp-reflash.1

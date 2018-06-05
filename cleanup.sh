@@ -9,7 +9,7 @@ rm -f m4/*.m4
 rm -r libtool
 rm -f test-driver
 
-for dir in . tcp_reflash man
+for dir in . hti-tcp-reflash man
 do
     rm -f ${dir}/*.in
     rm -f ${dir}/Makefile

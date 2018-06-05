@@ -88,7 +88,7 @@ main(int argc, char **argv)
         }
 
         if (!((serial < 0) ^ (ip == NULL))) {
-                fprintf(stderr, "Expected: one of -s or -i");
+                fprintf(stderr, "Expected: one of -s or -i\n");
                 exit(1);
         }
 
