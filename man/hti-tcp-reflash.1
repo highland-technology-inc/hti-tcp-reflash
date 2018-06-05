@@ -3,8 +3,8 @@
 \fBhti-tcp-reflash\fR - reflash some of Highland's products via TCP/IP
 .SH "SYNOPSIS"
 .B hti-tcp-reflash
-[\fB-s \fIserial\fR]
-[\fB-i \fIip_address\fR]
+[\fB-s \fISERIAL\fR]
+[\fB-i \fIIP_ADDRESS\fR]
 .I target filename
 .SH "ARGUMENTS"
 .P
@@ -25,18 +25,34 @@ file (those with the ".bin" suffix)!
 .P
 You must use \fIone\fR but \fInot\fR both of the following options:
 .P
-.BI "-s " serial
+.BI "-s " SERIAL
 .RS 4
-Serial number of the unit to upgrade.  This will be used to determine
+Serial number of the unit to upgrade.
+This will be used to determine
 the unit's hostname.
+(The products supported by this software follow the hostname convention
+of {\fIname\fR}-{\fI5-digit-serial\fR},
+eg. \fBp620-00123\fR.)
 .RE
 .P
-.BI "-i " ip_address
+.BI "-i " IP_ADDRESS
 .RS 4
-IP address of the unit to upgrade.  Use this if you know the IP address
-of the unit to test, and you want to use that instead.
+IP address of the unit to upgrade.
+Use this if the target uses a static IP address
+instead of DHCP.
 .RE
+.SH "WARNING"
+.P
+If you have multiple HTI products and multiple upgrade files as a result,
+BE SURE TO USE THE CORRECT UPGRADE FILE WITH THE CORRECT PRODUCT.
+.P
+It is possible in some cases
+to ``successfully'' upgrade a Highland product
+with a firmware file that was intended for a different Highland product.
+Doing this will result in
+either a boot failure or unpredictable behavior,
+which can only be repaired by a physical flash replacement.
 .SH "BUGS"
-The cake is a lie.
+Consider this software to be pre-alpha.
 .SH "AUTHORS"
 Paul Bailey
