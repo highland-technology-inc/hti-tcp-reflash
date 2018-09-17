@@ -31,6 +31,9 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * REVISIT: The entire implementation of this API looks like overkill.  Why
+ * create two sockets?
  */
 #include "reflash.h"
 #include <stdio.h>
@@ -103,14 +106,25 @@ make_socket(uint16_t port, const char *hostname, struct sockaddr_in *serv_addr)
         }
 
         /* Initialize socket structure */
-        bzero((char *)serv_addr, sizeof(*serv_addr));
+        memset((char *)serv_addr, 0, sizeof(*serv_addr));
         hp = gethostbyname(hostname);
         if (hp == NULL) {
                 fprintf(stderr, "Host name %s not on network\n", hostname);
                 exit(1);
         }
         serv_addr->sin_family = hp->h_addrtype;
-        memcpy(&serv_addr->sin_addr.s_addr, *hp->h_addr_list, sizeof(*hp->h_addr_list));//strlen(*hp->h_addr_list));
+#if 0
+        /* 
+         * TODO: Should I not also verify sin_family before deciding
+         * copy size?
+         */
+        memcpy(&serv_addr->sin_addr.s_addr, *hp->h_addr_list, 
+               sizeof(serv_addr->sin_addr.s_sarr));
+#else
+# warning "Test above and remove this"
+        /* FIXME: This works, but it is theoretically very wrong! */
+        memcpy(&serv_addr->sin_addr.s_addr, *hp->h_addr_list, sizeof(*hp->h_addr_list));
+#endif
         serv_addr->sin_port = htons(port);
 
         return sockfd;
