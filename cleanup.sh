@@ -1,5 +1,7 @@
 #!/bin/sh
 
+test -f Makefile && make clean
+
 # Use this to get rid of clutter you don't want in version control.
 # autoreconf and configure are required after executing this script.
 rm -f stamp-h1 *.h configure config.log config.status ltmain.sh
