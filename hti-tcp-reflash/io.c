@@ -113,18 +113,12 @@ make_socket(uint16_t port, const char *hostname, struct sockaddr_in *serv_addr)
                 exit(1);
         }
         serv_addr->sin_family = hp->h_addrtype;
-#if 0
         /* 
          * TODO: Should I not also verify sin_family before deciding
          * copy size?
          */
         memcpy(&serv_addr->sin_addr.s_addr, *hp->h_addr_list, 
-               sizeof(serv_addr->sin_addr.s_sarr));
-#else
-# warning "Test above and remove this"
-        /* FIXME: This works, but it is theoretically very wrong! */
-        memcpy(&serv_addr->sin_addr.s_addr, *hp->h_addr_list, sizeof(*hp->h_addr_list));
-#endif
+               sizeof(serv_addr->sin_addr.s_addr));
         serv_addr->sin_port = htons(port);
 
         return sockfd;
