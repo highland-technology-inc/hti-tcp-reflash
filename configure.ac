@@ -3,6 +3,7 @@
 
 AC_PREREQ([2.68])
 AC_INIT([hti-tcp-reflash], [1.0], [pbailey@highlandtechnoly.com])
+AC_CONFIG_AUX_DIR([build])
 AM_INIT_AUTOMAKE
 
 LT_PREREQ([2.2])

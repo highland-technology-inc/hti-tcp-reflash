@@ -10,6 +10,8 @@ rm -rf autom4te.cache/
 rm -f m4/*.m4
 rm -r libtool
 rm -f test-driver
+rm -f build/ltmain.sh
+rm -f build/test-driver
 
 for dir in . hti-tcp-reflash man
 do
