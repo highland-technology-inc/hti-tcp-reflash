@@ -62,6 +62,23 @@ or
 
   groff -Tascii -mman ./man/hti-tcp-reflash.1 | less
 
+The TCP serial interface used to reflash these products are documented in
+their manuals.  Most of these devices follow the format of...
+
+::
+
+  FLASH UNLOCK
+  FLASH ERASE
+  FLASH WRITE S224000000DF9B...
+
+\...and so on, repeating the ``FLASH WRITE`` part line-by-line, until
+EOF.
+
+After hti-tcp-reflash completes, a user should connect to the device (TCP
+or USB-Serial) and run a ``FLASH CHECKSUM`` command (or similar — check
+the manual), and, if the reply indicates a successful upgrade procedure,
+reboot the device.
+
 Portability
 ===========
 
