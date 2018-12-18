@@ -43,6 +43,7 @@ static const struct target_lut_t {
         int (*reflash)(struct REFLASH_TCP_T *tcp, FILE *fp);
 } target_lut[] = {
         { "p620", generic_reflash },
+        { "p545", generic_reflash },
         { "p470", generic_reflash },
         { "p330", generic_reflash },
         { "t680", t680_reflash },
