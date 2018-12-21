@@ -76,10 +76,13 @@ main(int argc, char **argv)
         const struct target_lut_t *lut;
 
         /* TODO: Add '-i' for direct IP address */
-        while ((opt = getopt(argc, argv, "s:")) != -1) {
+        while ((opt = getopt(argc, argv, "s:i:")) != -1) {
                 switch (opt) {
                 case 's':
                         serial = atoi(optarg);
+                        break;
+                case 'i':
+                        ip = optarg;
                         break;
                 default:
                         fprintf(stderr, "Usage: %s [-s serial] target filename\n",
@@ -111,7 +114,10 @@ main(int argc, char **argv)
                 exit(1);
         }
 
-        snprintf(hostname, sizeof(hostname), "%s-%05u", lut->name, serial);
+        if (ip != NULL)
+                strncpy(hostname, ip, sizeof(hostname));
+        else
+                snprintf(hostname, sizeof(hostname), "%s-%05u", lut->name, serial);
         hostname[sizeof(hostname) - 1] = '\0';
         h = tcp_open(hostname);
         if (h == NULL) {
