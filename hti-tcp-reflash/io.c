@@ -35,211 +35,167 @@
  * REVISIT: The entire implementation of this API looks like overkill.  Why
  * create two sockets?
  */
+
 #include "reflash.h"
-#include <stdio.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <unistd.h>
-#include <netdb.h>
-#include <errno.h>
-#include <assert.h>
 
-#define HOSTNAME_SIZE       32
-#define RXBUF_SIZE          1024
-#define TXBUF_SIZE          256
 
-struct REFLASH_TCP_T {
-        char                hostname[HOSTNAME_SIZE];
-        int                 ep_sock;
-        int                 server_sock;
-        struct sockaddr_in  ep;
-        struct sockaddr_in  server;
-        int                 opt_val;
+enum {
+        HTI_PORT = 2000,
 };
 
-static char dummy_rxbuf[256];
+static const char *HTI_SERVICE = "2000";
 
-static void
-tcp_send(int socketfd, const char *command)
+struct reflash_tcp_t {
+        FILE *fp;
+        char *lineptr;
+        size_t n;
+};
+
+static int
+open_remote_socket(const char *node, int socktype)
 {
-        int ret = send(socketfd, command, strlen(command), 0);
-        if (ret < 0) {
-                fprintf(stderr, "TCP send(\"%s\") failed\n", command);
-                exit(1);
+        struct addrinfo hints;
+        struct addrinfo *list, *rp;
+        int res, fd = -1;
+
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET;
+        hints.ai_socktype = socktype;
+
+        res = getaddrinfo(node, HTI_SERVICE, &hints, &list);
+        if (res != 0) {
+                fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(res));
+                return -1;
         }
+
+        for (rp = list; rp != NULL; rp = rp->ai_next) {
+                struct sockaddr_in sin;
+
+                if (rp->ai_family != AF_INET
+                    || rp->ai_addrlen != sizeof(sin)) {
+                        continue;
+                }
+
+                fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+                if (fd == -1)
+                        continue;
+
+                memcpy(&sin, rp->ai_addr, sizeof(sin));
+                sin.sin_port = HTI_PORT;
+                printf("Trying %s...\n", inet_ntoa(sin.sin_addr));
+                if (connect(fd, rp->ai_addr, rp->ai_addrlen) != -1) {
+                        char host[NI_MAXHOST];
+                        const char *socktype_name = (socktype == SOCK_STREAM)
+                                                   ? "TCP" : "UDP";
+                        res = getnameinfo(rp->ai_addr, rp->ai_addrlen,
+                                          host, sizeof(host), NULL, 0, 0);
+                        if (res != 0) {
+                                printf("Connecting via %s to <%s/%d>\n",
+                                       socktype_name,
+                                       inet_ntoa(sin.sin_addr),
+                                       (unsigned int)sin.sin_port);
+                        } else {
+                                printf("Connecting via %s to <%s/%d> '%s'\n",
+                                       socktype_name,
+                                       inet_ntoa(sin.sin_addr),
+                                       (unsigned int)sin.sin_port,
+                                       host);
+                        }
+                        break;
+                }
+                close(fd);
+                fd = -1;
+        }
+
+        freeaddrinfo(list);
+        return fd;
 }
 
 static int
-tcp_recv(int socketfd, char *buf, int maxbytes)
+tcp_vfprintf(struct reflash_tcp_t *tcp, const char *fmt, va_list ap)
 {
-        int ret = recv(socketfd, buf, maxbytes, 0);
-        if (ret < 0) {
-                fprintf(stderr, "TCP no reply.\n");
-                exit(1);
-        } else if (ret == 0) {
-                fprintf(stderr, "TCP unexpected EOF.\n");
-                exit(1);
-        } else if (buf[0] == '\0') {
-                fprintf(stderr, "TCP recv: Unexpected string of length zero.\n");
-                exit(1);
-        } else if (buf[0] == 'E' && buf[3] == ':') {
-                fprintf(stderr, "target error: \"%s\"\n", buf);
-                exit(1);
-        }
-        return ret;
+        int res = vfprintf(tcp->fp, fmt, ap);
+        if (res < 0)
+                return res;
+        fputc('\r', tcp->fp);
+        fflush(tcp->fp);
+        return 0;
 }
 
-static int
-make_socket(uint16_t port, const char *hostname, struct sockaddr_in *serv_addr)
+struct reflash_tcp_t *
+tcp_open(const char *node)
 {
-        int sockfd;
-        struct hostent *hp;
+        struct reflash_tcp_t *tcp = malloc(sizeof(*tcp));
+        int fd;
+        if (!tcp)
+                goto e_tcp;
+        memset(tcp, 0, sizeof(*tcp));
+        fd = open_remote_socket(node, SOCK_STREAM);
+        if (fd < 0)
+                goto e_fd;
+        tcp->fp = fdopen(fd, "r+");
+        if (!tcp->fp)
+                goto e_fp;
 
-        /* Create the socket.  */
-        sockfd = socket(AF_INET, SOCK_STREAM, 0);
-        if (sockfd < 0) {
-                fputs("ERROR opening socket\n", stderr);
-                exit (1);
-        }
+        return tcp;
 
-        /* Initialize socket structure */
-        memset((char *)serv_addr, 0, sizeof(*serv_addr));
-        hp = gethostbyname(hostname);
-        if (hp == NULL) {
-                fprintf(stderr, "Host name %s not on network\n", hostname);
-                exit(1);
-        }
-        serv_addr->sin_family = hp->h_addrtype;
-        /*
-         * TODO: Should I not also verify sin_family before deciding
-         * copy size?
-         */
-        memcpy(&serv_addr->sin_addr.s_addr, *hp->h_addr_list,
-               sizeof(serv_addr->sin_addr.s_addr));
-        serv_addr->sin_port = htons(port);
-
-        return sockfd;
-}
-
-static int
-make_host_socket(struct REFLASH_TCP_T *h)
-{
-        int sockfd, status;
-
-        sockfd = make_socket(7000, "localhost", &h->server);
-
-        h->opt_val  = 1;
-        status = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR,
-                             &h->opt_val, (socklen_t)(sizeof(h->opt_val)));
-        if (status != 0)
-                fprintf(stderr, "Warning, could not set socket for reusable address\n");
-
-        /* Bind the host address */
-        status = bind(sockfd, (struct sockaddr *)&h->server, sizeof(h->server));
-        if (status < 0) {
-                fprintf(stderr, "ERROR on binding: %s\n", strerror(errno));
-                exit(1);
-        }
-
-        /* Connect to the socket */
-        status = connect(sockfd, (struct sockaddr *)&h->server, sizeof(h->server));
-        if (status < 0) {
-                fprintf(stderr, "ERROR on connecting: %s\n", strerror(errno));
-                exit(1);
-        }
-        return sockfd;
-}
-
-static int
-make_ep_socket(struct REFLASH_TCP_T *h, const char *hostname)
-{
-        int sockfd, status;
-
-        sockfd = make_socket(2000, hostname, &h->server);
-
-        /* Connect to the socket */
-        status = connect(sockfd, (struct sockaddr *)&h->server, sizeof(h->server));
-        if (status < 0) {
-                fprintf(stderr, "ERROR on connecting: %s\n", strerror(errno));
-                exit(1);
-        }
-        return sockfd;
-}
-
-
-/* *********************************************************************
- *                      Public functions
- **********************************************************************/
-
-struct REFLASH_TCP_T *
-tcp_open(const char *hostname)
-{
-        struct REFLASH_TCP_T *h = calloc(1, sizeof(*h));
-        if (h == NULL)
-                goto errmalloc;
-
-        strncpy(h->hostname, hostname, HOSTNAME_SIZE);
-        h->server_sock = make_host_socket(h);
-        h->ep_sock = make_ep_socket(h, h->hostname);
-
-        /* Flush characters by sending NL and ignoring 1st error */
-        tcp_send(h->ep_sock, "\n");
-        tcp_recv(h->ep_sock, dummy_rxbuf, sizeof(dummy_rxbuf));
-
-        return h;
-
-        free(h);
-errmalloc:
+e_fp:
+        close(fd);
+        fd = -1;
+e_fd:
+        free(tcp);
+e_tcp:
         return NULL;
 }
 
-int
-tcp_write(struct REFLASH_TCP_T *h, const char *out)
+const char *
+tcp_io(struct reflash_tcp_t *tcp, const char *fmt, ...)
 {
-        tcp_send(h->ep_sock, out);
-        return 0;
+        va_list ap;
+        int res;
+
+        va_start(ap, fmt);
+        res = tcp_vfprintf(tcp, fmt, ap);
+        va_end(ap);
+        if (res < 0)
+                return NULL;
+        return tcp_getline(tcp);
 }
 
 int
-tcp_read(struct REFLASH_TCP_T *h, char *in, int maxbytes)
+tcp_io_sendonly(struct reflash_tcp_t *tcp, const char *fmt, ...)
 {
-        return tcp_recv(h->ep_sock, in, maxbytes - 1);
+        va_list ap;
+        int res;
+
+        va_start(ap, fmt);
+        res = tcp_vfprintf(tcp, fmt, ap);
+        va_end(ap);
+        return res;
 }
 
-int
-tcp_io(struct REFLASH_TCP_T *h, const char *out, char *in, int maxbytes)
+const char *
+tcp_getline(struct reflash_tcp_t *tcp)
 {
-        tcp_send(h->ep_sock, out);
-        tcp_recv(h->ep_sock, in, maxbytes - 1);
-        return 0;
+        if (getline(&tcp->lineptr, &tcp->n, tcp->fp) < 0)
+                return NULL;
+        return tcp->lineptr;
 }
 
-int
-tcp_io_sendonly(struct REFLASH_TCP_T *h, const char *out)
+void
+tcp_close(struct reflash_tcp_t *tcp)
 {
-        tcp_send(h->ep_sock, out);
-        return 0;
+        if (tcp->lineptr != NULL)
+                free(tcp->lineptr);
+        if (tcp->fp != NULL)
+                fclose(tcp->fp);
 }
 
-int
-tcp_io_recvonly(struct REFLASH_TCP_T *h, char *in, int maxbytes)
-{
-        tcp_recv(h->ep_sock, in, maxbytes - 1);
-        in[maxbytes - 1] = '\0';
-        return 0;
-}
-
-int
-tcp_close(struct REFLASH_TCP_T *h)
-{
-        if (h == NULL)
-                return -EINVAL;
-
-        close(h->ep_sock);
-        close(h->server_sock);
-        free(h);
-        return 0;
-}

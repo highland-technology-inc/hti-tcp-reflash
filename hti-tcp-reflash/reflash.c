@@ -40,30 +40,39 @@
 #include <ctype.h>
 
 static void
+io_error(void)
+{
+        perror("Expected reply from device but received none");
+        exit(EXIT_FAILURE);
+}
+
+static void
 check_ok(const char *s)
 {
-        if (strncmp(s, "OK", 2)) {
-            fprintf(stderr, "Unexpected result of FLASH WRITE: %s\n", s);
-            exit(1);
+        if (!s)
+                io_error();
+
+        if (strncmp(s, "OK", 2) != 0) {
+                fprintf(stderr, "Unexpected result of FLASH WRITE: %s\n", s);
+                exit(EXIT_FAILURE);
         }
 }
 
 static int
-generic_flash_write(struct REFLASH_TCP_T *h, FILE *fp)
+generic_flash_write(struct reflash_tcp_t *h, FILE *fp)
 {
         char srec[256];
-        char outbuf[256];
-        char inbuf[256];
         int lineno = 0;
+
         fseek(fp, 0, SEEK_SET);
         printf("writing line         ");
         do {
+                char *end, *s;
+
                 printf("\033[8D%8d", lineno);
                 ++lineno;
 
-                char *end;
-                char *s = fgets(srec, sizeof(srec), fp);
-                if (s == NULL) {
+                if ((s = fgets(srec, sizeof(srec), fp)) == NULL) {
                         if (feof(fp))
                                 break;
                         fprintf(stderr, "fgets() returned NULL\n");
@@ -75,10 +84,7 @@ generic_flash_write(struct REFLASH_TCP_T *h, FILE *fp)
                         --end;
                 }
 
-                snprintf(outbuf, sizeof(outbuf), "FLASH WRITE %s\r", srec);
-
-                tcp_io(h, outbuf, inbuf, sizeof(inbuf));
-                check_ok(inbuf);
+                check_ok(tcp_io(h, "FLASH WRITE %s", srec));
         } while (!feof(fp));
         putchar('\n');
         return 0;
@@ -89,46 +95,43 @@ err:
 }
 
 static int
-generic_flash_erase(struct REFLASH_TCP_T *h)
+generic_flash_erase(struct reflash_tcp_t *h)
 {
-        char inbuf[1024] = { 0 };
-        tcp_io(h, "FLASH ERASE\r", inbuf, sizeof(inbuf));
+        check_ok(tcp_io(h, "FLASH ERASE"));
         return 0;
 }
 
 static int
-t680_flash_erase(struct REFLASH_TCP_T *h)
+t680_flash_erase(struct reflash_tcp_t *h)
 {
-        char inbuf[1024] = { 0 };
-        tcp_io_sendonly(h, "FLASH ERASE\r");
+        tcp_io_sendonly(h, "FLASH ERASE");
         for (;;) {
-                tcp_io_recvonly(h, inbuf, sizeof(inbuf));
-                if (strstr(inbuf, "OK"))
+                const char *line = tcp_getline(h);
+                if (line == NULL)
+                        io_error();
+
+                if (strstr(line, "OK")) {
                         break;
-                else if (strstr(inbuf, "31"))
-                        continue;
-                else {
+                } else if (strstr(line, "31") == NULL)  {
                         fprintf(stderr,
                                 "Unexpected result of FLASH ERASE: '%s'\n",
-                                inbuf);
-                        exit(1);
+                                line);
+                        exit(EXIT_FAILURE);
                 }
         }
         return 0;
 }
 
 static int
-generic_flash_unlock(struct REFLASH_TCP_T *h)
+generic_flash_unlock(struct reflash_tcp_t *h)
 {
-        char inbuf[1024];
-        tcp_io(h, "FLASH UNLOCK\r", inbuf, sizeof(inbuf));
-        check_ok(inbuf);
+        check_ok(tcp_io(h, "FLASH UNLOCK"));
         return 0;
 }
 
 static int
-generic_reflash_(struct REFLASH_TCP_T *h, FILE *fp,
-                 int (*ers)(struct REFLASH_TCP_T *))
+generic_reflash_(struct reflash_tcp_t *h, FILE *fp,
+                 int (*ers)(struct reflash_tcp_t *))
 {
         printf("Unlocking...\n");
         generic_flash_unlock(h);
@@ -140,13 +143,14 @@ generic_reflash_(struct REFLASH_TCP_T *h, FILE *fp,
 }
 
 int
-generic_reflash(struct REFLASH_TCP_T *h, FILE *fp)
+generic_reflash(struct reflash_tcp_t *h, FILE *fp)
 {
         return generic_reflash_(h, fp, generic_flash_erase);
 }
 
 int
-t680_reflash(struct REFLASH_TCP_T *h, FILE *fp)
+t680_reflash(struct reflash_tcp_t *h, FILE *fp)
 {
         return generic_reflash_(h, fp, t680_flash_erase);
 }
+

@@ -37,18 +37,18 @@
 
 #include <stdio.h>
 
-struct  REFLASH_TCP_T;
+struct reflash_tcp_t;
 
-extern int generic_reflash(struct REFLASH_TCP_T *h, FILE *fp);
-extern int t680_reflash(struct REFLASH_TCP_T *h, FILE *fp);
+/* reflash.c */
+extern int generic_reflash(struct reflash_tcp_t *h, FILE *fp);
+extern int t680_reflash(struct reflash_tcp_t *h, FILE *fp);
 
-extern struct REFLASH_TCP_T *tcp_open(const char *hostname);
-extern int tcp_io(struct REFLASH_TCP_T *h, const char *out, char *in, int maxbytes);
-extern int tcp_io_sendonly(struct REFLASH_TCP_T *h, const char *out);
-extern int tcp_io_recvonly(struct REFLASH_TCP_T *n, char *in, int maxbytes);
-extern int tcp_close(struct REFLASH_TCP_T *h);
-extern int tcp_write(struct REFLASH_TCP_T *h, const char *out);
-extern int tcp_read(struct REFLASH_TCP_T *h, char *in, int maxbytes);
+/* io.c */
+extern struct reflash_tcp_t *tcp_open(const char *node);
+extern const char *tcp_io(struct reflash_tcp_t *tcp, const char *fmt, ...);
+extern void tcp_close(struct reflash_tcp_t *tcp);
+extern const char *tcp_getline(struct reflash_tcp_t *tcp);
+extern int tcp_io_sendonly(struct reflash_tcp_t *tcp, const char *fmt, ...);
 
 
 #endif /* P620_REFLASH_H */

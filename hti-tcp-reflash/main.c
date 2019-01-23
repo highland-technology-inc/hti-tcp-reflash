@@ -40,7 +40,7 @@
 
 static const struct target_lut_t {
         const char *name;
-        int (*reflash)(struct REFLASH_TCP_T *tcp, FILE *fp);
+        int (*reflash)(struct reflash_tcp_t *tcp, FILE *fp);
 } target_lut[] = {
         { "p620", generic_reflash },
         { "p545", generic_reflash },
@@ -66,7 +66,7 @@ target_lookup(const char *target)
 int
 main(int argc, char **argv)
 {
-        struct REFLASH_TCP_T *h;
+        struct reflash_tcp_t *h;
         /* default caltable's serial number */
         int serial = -1;
         int opt;
