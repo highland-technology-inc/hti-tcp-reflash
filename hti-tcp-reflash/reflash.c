@@ -33,17 +33,32 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include "reflash.h"
+#include <setjmp.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <errno.h>
+
+static jmp_buf reflash_env;
+
+static void
+fail(const char *fmt, ...)
+{
+        va_list ap;
+        va_start(ap, fmt);
+        vfprintf(stderr, fmt, ap);
+        va_end(ap);
+        longjmp(reflash_env, 1);
+}
 
 static void
 io_error(void)
 {
-        perror("Expected reply from device but received none");
-        exit(EXIT_FAILURE);
+        fail("Expected reply from device but received none: (%s)\n",
+             strerror(errno));
 }
 
 static void
@@ -52,13 +67,11 @@ check_ok(const char *s)
         if (!s)
                 io_error();
 
-        if (strncmp(s, "OK", 2) != 0) {
-                fprintf(stderr, "Unexpected result of FLASH WRITE: %s\n", s);
-                exit(EXIT_FAILURE);
-        }
+        if (strncmp(s, "OK", 2) != 0)
+                fail("Unexpected result of FLASH WRITE: %s\n", s);
 }
 
-static int
+static void
 generic_flash_write(struct reflash_tcp_t *h, FILE *fp)
 {
         char srec[256];
@@ -75,8 +88,8 @@ generic_flash_write(struct reflash_tcp_t *h, FILE *fp)
                 if ((s = fgets(srec, sizeof(srec), fp)) == NULL) {
                         if (feof(fp))
                                 break;
-                        fprintf(stderr, "fgets() returned NULL\n");
-                        goto err;
+                        fclose(fp);
+                        fail("\nfgets() returned NULL\n");
                 }
                 end = &s[strlen(s) - 1];
                 while ((*end == '\n' || *end == '\r') && end > s) {
@@ -87,11 +100,6 @@ generic_flash_write(struct reflash_tcp_t *h, FILE *fp)
                 check_ok(tcp_io(h, "FLASH WRITE %s", srec));
         } while (!feof(fp));
         putchar('\n');
-        return 0;
-
-err:
-        fclose(fp);
-        return -1;
 }
 
 static int
@@ -113,10 +121,7 @@ t680_flash_erase(struct reflash_tcp_t *h)
                 if (strstr(line, "OK")) {
                         break;
                 } else if (strstr(line, "31") == NULL)  {
-                        fprintf(stderr,
-                                "Unexpected result of FLASH ERASE: '%s'\n",
-                                line);
-                        exit(EXIT_FAILURE);
+                        fail("Unexpected result of FLASH ERASE: '%s'\n", line);
                 }
         }
         return 0;
@@ -133,12 +138,18 @@ static int
 generic_reflash_(struct reflash_tcp_t *h, FILE *fp,
                  int (*ers)(struct reflash_tcp_t *))
 {
+        if (setjmp(reflash_env) != 0) {
+                fprintf(stderr, "Reflash failed\n");
+                return -1;
+        }
+
         printf("Unlocking...\n");
         generic_flash_unlock(h);
         printf("Erasing...\n");
         ers(h);
         printf("Reflashing...\n");
         generic_flash_write(h, fp);
+        printf("Reflash complete.  Reboot the device for changes to take effect.\n");
         return 0;
 }
 

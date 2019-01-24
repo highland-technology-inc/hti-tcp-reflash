@@ -70,6 +70,7 @@ main(int argc, char **argv)
         /* default caltable's serial number */
         int serial = -1;
         int opt;
+        int ret;
         FILE *fp;
         char hostname[16];
         char *ip = NULL;
@@ -126,11 +127,8 @@ main(int argc, char **argv)
         }
 
         printf("Wait\n");
-        if (lut->reflash(h, fp) < 0)
-                fprintf(stderr, "%s: reflash failed\n", argv[0]);
-        else
-                printf("Done\n");
+        ret = lut->reflash(h, fp) == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 
         tcp_close(h);
-        return 0;
+        return ret;
 }
