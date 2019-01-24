@@ -72,7 +72,7 @@ main(int argc, char **argv)
         int opt;
         int ret;
         FILE *fp;
-        char hostname[16];
+        char hostname[64];
         char *ip = NULL;
         const struct target_lut_t *lut;
 
