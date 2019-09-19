@@ -52,6 +52,7 @@ static const char *HTI_SERVICE = "2000";
 
 struct reflash_tcp_t {
         FILE *fp;
+        FILE *fpin;
         char *lineptr;
         size_t n;
 };
@@ -131,21 +132,37 @@ struct reflash_tcp_t *
 tcp_open(const char *node)
 {
         struct reflash_tcp_t *tcp = malloc(sizeof(*tcp));
-        int fd;
+        int fd, fdin;
         if (!tcp)
                 goto e_tcp;
         memset(tcp, 0, sizeof(*tcp));
         fd = open_remote_socket(node, SOCK_STREAM);
         if (fd < 0)
                 goto e_fd;
-        tcp->fp = fdopen(fd, "r+");
+        tcp->fp = fdopen(fd, "w");
         if (!tcp->fp)
                 goto e_fp;
+        /*
+         * ``dup" so we can call fclose on fp and fpin independently
+         * when tcp_close() is called.
+         */
+        fdin = dup(fd);
+        if (fdin < 0)
+                goto e_dup;
+        tcp->fpin = fdopen(fdin, "r");
+        if (!tcp->fpin)
+                goto e_fpin;
 
         return tcp;
 
+e_fpin:
+        if (fdin >= 0)
+                close(fdin);
+e_dup:
+        fclose(tcp->fp);
 e_fp:
-        close(fd);
+        if (fd >= 0)
+                close(fd);
         fd = -1;
 e_fd:
         free(tcp);
@@ -182,7 +199,7 @@ tcp_io_sendonly(struct reflash_tcp_t *tcp, const char *fmt, ...)
 const char *
 tcp_getline(struct reflash_tcp_t *tcp)
 {
-        if (sock_getline(&tcp->lineptr, &tcp->n, tcp->fp) < 0)
+        if (getline(&tcp->lineptr, &tcp->n, tcp->fpin) < 0)
                 return NULL;
         return tcp->lineptr;
 }
@@ -194,5 +211,7 @@ tcp_close(struct reflash_tcp_t *tcp)
                 free(tcp->lineptr);
         if (tcp->fp != NULL)
                 fclose(tcp->fp);
+        if (tcp->fpin != NULL)
+                fclose(tcp->fpin);
 }
 
