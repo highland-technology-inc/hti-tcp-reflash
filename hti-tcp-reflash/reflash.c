@@ -67,8 +67,15 @@ check_ok(const char *s)
         if (!s)
                 io_error();
 
-        if (strncmp(s, "OK", 2) != 0)
+        if (strncmp(s, "OK", 2) != 0) {
+                /* T680? */
+                if (strncmp(s, "T680", 4) == 0
+                    && strstr(s, "OK") != NULL) {
+                        return;
+                }
+
                 fail("Unexpected result of FLASH WRITE: %s\n", s);
+        }
 }
 
 static void
