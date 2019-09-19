@@ -50,5 +50,7 @@ extern void tcp_close(struct reflash_tcp_t *tcp);
 extern const char *tcp_getline(struct reflash_tcp_t *tcp);
 extern int tcp_io_sendonly(struct reflash_tcp_t *tcp, const char *fmt, ...);
 
+/* sock_getline.c */
+extern ssize_t sock_getline(char **line, size_t *len, FILE *fp);
 
 #endif /* P620_REFLASH_H */

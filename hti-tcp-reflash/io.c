@@ -182,7 +182,7 @@ tcp_io_sendonly(struct reflash_tcp_t *tcp, const char *fmt, ...)
 const char *
 tcp_getline(struct reflash_tcp_t *tcp)
 {
-        if (getline(&tcp->lineptr, &tcp->n, tcp->fp) < 0)
+        if (sock_getline(&tcp->lineptr, &tcp->n, tcp->fp) < 0)
                 return NULL;
         return tcp->lineptr;
 }
