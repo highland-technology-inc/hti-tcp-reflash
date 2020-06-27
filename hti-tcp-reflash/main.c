@@ -49,6 +49,7 @@ static const struct target_lut_t {
         { "t680", t680_reflash },
         { "v120", t680_reflash },
         { "v124", t680_reflash },
+        { "p900", p900_reflash },
         { NULL, NULL },
 };
 

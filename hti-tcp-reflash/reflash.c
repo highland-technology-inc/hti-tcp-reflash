@@ -172,3 +172,73 @@ t680_reflash(struct reflash_tcp_t *h, FILE *fp)
         return generic_reflash_(h, fp, t680_flash_erase);
 }
 
+static int
+check_str(const char *s, const char *expect, const char *altmsg)
+{
+        if (!s)
+                io_error();
+        if (strncmp(s, expect, strlen(expect)) != 0) {
+                if (altmsg)
+                        fail("%s\n", altmsg);
+                else
+                        fail("Unexpected result: %s\n", s);
+        }
+}
+
+static void
+scpi_flash_write(struct reflash_tcp_t *h, FILE *fp)
+{
+        char srec[256];
+        int lineno = 0;
+
+        fseek(fp, 0, SEEK_SET);
+        printf("writing line         ");
+        fflush(stdout);
+        do {
+                char *end, *s;
+                printf("\033[8D%8d", lineno);
+                ++lineno;
+
+                if ((s = fgets(srec, sizeof(srec), fp)) == NULL) {
+                        if (feof(fp))
+                                break;
+                        fclose(fp);
+                        fail("\nfgets() returned NULL\n");
+                }
+                end = &s[strlen(s) - 1];
+                while ((*end == '\n' || *end == '\r') && end > s) {
+                        *end = '\0';
+                        --end;
+                }
+                if (end == s)
+                        continue;
+
+                check_str(tcp_io(h, "FLASH:WRITE \"%s\";*OPC?", srec),
+                          "1", NULL);
+        } while (!feof(fp));
+        putchar('\n');
+}
+
+int
+p900_reflash(struct reflash_tcp_t *h, FILE *fp)
+{
+        if (setjmp(reflash_env) != 0) {
+                fprintf(stderr, "Reflash failed\n");
+                return -1;
+        }
+        const char *s;
+
+        printf("Checking hardware lock switch\n");
+        check_str(tcp_io(h, "STATUS:LOCK?"), "0",
+                  "Cannot perform flash operations on locked device");
+        printf("Unlocking...\n");
+        check_str(tcp_io(h, "FLASH:UNLOCK;*OPC?"), "1", NULL);
+        printf("Erasing...\n");
+        check_str(tcp_io(h, "FLASH:ERASE;*OPC?"), "1", NULL);
+        printf("Writing...\n");
+        scpi_flash_write(h, fp);
+        printf("Re-locking...\n");
+        check_str(tcp_io(h, "FLASH:LOCK;*OPC?"), "1", NULL);
+        putchar('\n');
+        return 0;
+}
