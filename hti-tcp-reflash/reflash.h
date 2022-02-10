@@ -43,6 +43,7 @@ struct reflash_tcp_t;
 extern int generic_reflash(struct reflash_tcp_t *h, FILE *fp);
 extern int t680_reflash(struct reflash_tcp_t *h, FILE *fp);
 extern int p900_reflash(struct reflash_tcp_t *h, FILE *fp);
+extern int t500_reflash(struct reflash_tcp_t *h, FILE *fp);
 
 /* io.c */
 extern struct reflash_tcp_t *tcp_open(const char *node);

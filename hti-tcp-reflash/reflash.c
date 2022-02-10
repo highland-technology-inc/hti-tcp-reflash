@@ -219,8 +219,8 @@ scpi_flash_write(struct reflash_tcp_t *h, FILE *fp)
         putchar('\n');
 }
 
-int
-p900_reflash(struct reflash_tcp_t *h, FILE *fp)
+static int
+scpi_reflash(struct reflash_tcp_t *h, FILE *fp, int check_lock)
 {
         if (setjmp(reflash_env) != 0) {
                 fprintf(stderr, "Reflash failed\n");
@@ -228,9 +228,11 @@ p900_reflash(struct reflash_tcp_t *h, FILE *fp)
         }
         const char *s;
 
-        printf("Checking hardware lock switch\n");
-        check_str(tcp_io(h, "STATUS:LOCK?"), "0",
-                  "Cannot perform flash operations on locked device");
+        if (check_lock) {
+                printf("Checking hardware lock switch\n");
+                check_str(tcp_io(h, "STATUS:LOCK?"), "0",
+                          "Cannot perform flash operations on locked device");
+        }
         printf("Unlocking...\n");
         check_str(tcp_io(h, "FLASH:UNLOCK;*OPC?"), "1", NULL);
         printf("Erasing...\n");
@@ -241,4 +243,16 @@ p900_reflash(struct reflash_tcp_t *h, FILE *fp)
         check_str(tcp_io(h, "FLASH:LOCK;*OPC?"), "1", NULL);
         putchar('\n');
         return 0;
+}
+
+int
+p900_reflash(struct reflash_tcp_t *h, FILE *fp)
+{
+        return scpi_reflash(h, fp, 1);
+}
+
+int
+t500_reflash(struct reflash_tcp_t *h, FILE *fp)
+{
+        return scpi_reflash(h, fp, 0);
 }
